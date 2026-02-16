@@ -236,14 +236,30 @@ export default function Home() {
     setCurrentPage(1);
 
     try {
+      const backendPageSize = 500;
       const response = await listStoredProcedures({
         connectionId,
         page: 1,
-        limit: 200,
+        limit: backendPageSize,
         search: searchValue || undefined,
       });
-      setStoredProcedures(response.stored_procedures || []);
-      setStoredProceduresTotal(response.total || 0);
+
+      const total = response.total || 0;
+      const allSps = [...(response.stored_procedures || [])];
+      const totalBackendPages = Math.ceil(total / backendPageSize);
+
+      for (let page = 2; page <= totalBackendPages; page += 1) {
+        const nextPage = await listStoredProcedures({
+          connectionId,
+          page,
+          limit: backendPageSize,
+          search: searchValue || undefined,
+        });
+        allSps.push(...(nextPage.stored_procedures || []));
+      }
+
+      setStoredProcedures(allSps);
+      setStoredProceduresTotal(total);
     } catch (error) {
       setStoredProceduresError("No se pudo cargar la lista de SPs.");
     } finally {
