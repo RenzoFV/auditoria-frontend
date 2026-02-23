@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Database, Search, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Database, Loader2, Search, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SidebarLayout } from "@/components/dashboard/sidebar-07";
@@ -78,6 +78,8 @@ export default function Home() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisSpCount, setAnalysisSpCount] = useState(0);
+  const [analysisUsesAi, setAnalysisUsesAi] = useState(false);
   const [selectedFinding, setSelectedFinding] = useState(null);
   const [findingOpen, setFindingOpen] = useState(false);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
@@ -92,6 +94,7 @@ export default function Home() {
   const isSqlAuth = connectionForm.connection_type === "sql_auth";
 
   const selectedCount = selectedSpIds.length;
+  const analysisTargetCount = analysisSpCount || selectedCount;
 
   const allSelected =
     storedProcedures.length > 0 &&
@@ -308,6 +311,8 @@ export default function Home() {
       return;
     }
 
+    setAnalysisSpCount(selectedSpIds.length);
+    setAnalysisUsesAi(useAi && analysisType === 'full');
     setAnalysisLoading(true);
     setAnalysisError("");
     setAnalysisResult(null);
@@ -325,6 +330,7 @@ export default function Home() {
       setAnalysisError("No se pudo ejecutar el analisis.");
     } finally {
       setAnalysisLoading(false);
+      setAnalysisUsesAi(false);
     }
   };
 
@@ -867,6 +873,11 @@ export default function Home() {
                       <p className="mt-2 text-xs text-muted-foreground">
                         Linea {finding.location?.line ?? "-"}
                       </p>
+                      {finding.normative_reference ? (
+                        <p className="mt-1 text-xs text-amber-700">
+                          Normativa: {finding.normative_reference}
+                        </p>
+                      ) : null}
                     </div>
                   ))}
                   {analysisResult.findings.length > findingsPerPage && (
@@ -903,6 +914,25 @@ export default function Home() {
         </div>
       </section>
 
+      <Dialog open={analysisLoading && analysisUsesAi}>
+        <DialogContent
+          className="max-w-md"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onPointerDownOutside={(event) => event.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              Analizando con IA
+            </DialogTitle>
+            <DialogDescription>
+              {analysisTargetCount === 1
+                ? "El SP seleccionado se esta analizando con IA. Esto puede tardar unos segundos."
+                : `Se estan analizando ${analysisTargetCount} SPs con IA. Esto puede tardar unos segundos.`}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
       <Dialog open={findingOpen} onOpenChange={setFindingOpen}>
         <DialogContent>
           <DialogHeader>
@@ -937,6 +967,14 @@ export default function Home() {
                   <p className="text-sm font-semibold">Recomendacion</p>
                   <p className="text-sm text-muted-foreground">
                     {selectedFinding.recommendation}
+                  </p>
+                </div>
+              ) : null}
+              {selectedFinding.normative_reference ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Normativa afectada</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedFinding.normative_reference}
                   </p>
                 </div>
               ) : null}

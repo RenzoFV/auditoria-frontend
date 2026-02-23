@@ -234,6 +234,15 @@ export default function ReportesPage() {
                                   </p>
                                 </div>
                               )}
+
+                              {finding.normative_reference && (
+                                <div>
+                                  <p className="text-sm font-medium">Normativa afectada:</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {finding.normative_reference}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))}
