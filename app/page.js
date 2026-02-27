@@ -96,6 +96,16 @@ export default function Home() {
   const selectedCount = selectedSpIds.length;
   const analysisTargetCount = analysisSpCount || selectedCount;
 
+  const isConnectionExpiredError = (error) => {
+    const message = (error?.message || "").toLowerCase();
+    return (
+      message.includes("conexion no encontrada") ||
+      message.includes("conexión no encontrada") ||
+      message.includes("reconecta a la base de datos") ||
+      message.includes("las conexiones se pierden")
+    );
+  };
+
   const allSelected =
     storedProcedures.length > 0 &&
     storedProcedures.every((sp) => selectedSpIds.includes(sp.id));
@@ -264,7 +274,15 @@ export default function Home() {
       setStoredProcedures(allSps);
       setStoredProceduresTotal(total);
     } catch (error) {
-      setStoredProceduresError("No se pudo cargar la lista de SPs.");
+      if (isConnectionExpiredError(error)) {
+        setConnectionId("");
+        setDatabaseInfo(null);
+        setSelectedDatabase("");
+        setStoredProceduresError("Conexion expirada. Reconecta a la base de datos y vuelve a cargar los SPs.");
+        setConnectionStatus("Conexion expirada");
+      } else {
+        setStoredProceduresError(error?.message || "No se pudo cargar la lista de SPs.");
+      }
     } finally {
       setStoredProceduresLoading(false);
     }
@@ -281,9 +299,17 @@ export default function Home() {
     try {
       const response = await selectDatabase(connectionId, database);
       setDatabaseInfo(response.database_info);
-      loadStoredProcedures(database);
+      await loadStoredProcedures(database);
     } catch (error) {
-      setDatabasesError("No se pudo seleccionar la base de datos.");
+      if (isConnectionExpiredError(error)) {
+        setConnectionId("");
+        setDatabaseInfo(null);
+        setSelectedDatabase("");
+        setDatabasesError("Conexion expirada. Reconecta a la base de datos y vuelve a seleccionar la BD.");
+        setConnectionStatus("Conexion expirada");
+      } else {
+        setDatabasesError(error?.message || "No se pudo seleccionar la base de datos.");
+      }
     }
   };
 
@@ -327,7 +353,17 @@ export default function Home() {
       });
       setAnalysisResult(response);
     } catch (error) {
-      setAnalysisError("No se pudo ejecutar el analisis.");
+      if (isConnectionExpiredError(error)) {
+        setConnectionId("");
+        setDatabaseInfo(null);
+        setSelectedDatabase("");
+        setStoredProcedures([]);
+        setSelectedSpIds([]);
+        setConnectionStatus("Conexion expirada");
+        setAnalysisError("Conexion expirada. Reconecta a la base de datos antes de analizar.");
+      } else {
+        setAnalysisError(error?.message || "No se pudo ejecutar el analisis.");
+      }
     } finally {
       setAnalysisLoading(false);
       setAnalysisUsesAi(false);
@@ -934,14 +970,14 @@ export default function Home() {
         </DialogContent>
       </Dialog>
       <Dialog open={findingOpen} onOpenChange={setFindingOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedFinding?.title || "Detalle de vulnerabilidad"}
             </DialogTitle>
             <DialogDescription>
               {selectedFinding
-                ? `${selectedFinding.severity} · ${selectedFinding.category}`
+                ? `${selectedFinding.sp_name || "SP no identificado"} - ${selectedFinding.severity} - ${selectedFinding.category}`
                 : ""}
             </DialogDescription>
           </DialogHeader>
@@ -1018,9 +1054,11 @@ export default function Home() {
       </Dialog>
 
       <Dialog open={evidenceOpen} onOpenChange={setEvidenceOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Evidencia de vulnerabilidad</DialogTitle>
+            <DialogTitle>
+              Evidencia de vulnerabilidad {selectedFinding?.sp_name ? `- ${selectedFinding.sp_name}` : ""}
+            </DialogTitle>
             <DialogDescription>
               Análisis específico con datos reales (enmascarados para seguridad)
             </DialogDescription>
