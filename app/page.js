@@ -41,7 +41,8 @@ const connectionTypes = [
 
 const analysisTypes = [
   { value: "full", label: "Completo" },
-  { value: "quick", label: "Rapido" },
+  { value: "quick", label: "Rápido" },
+  { value: "deep", label: "Profundo (IA avanzada)" },
 ];
 
 export default function Home() {
@@ -351,6 +352,7 @@ export default function Home() {
         use_ai: useAi,
         save_to_db: saveToDb,
       });
+      console.log("[ANALYSIS RESULT]", response);
       setAnalysisResult(response);
     } catch (error) {
       if (isConnectionExpiredError(error)) {
